@@ -1,4 +1,4 @@
 .env
 .idea
-src/agent/__pycache__
 __pycache__
+.python-version
