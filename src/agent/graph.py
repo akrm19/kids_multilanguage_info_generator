@@ -1,9 +1,7 @@
-from typing import Tuple, List, Literal
+from typing import List, Literal
 
 from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import tool
 from langgraph.graph import StateGraph, START, END
 
 from src.agent.state import GeneratorState, GeneratorInput, GeneratorOutput
@@ -12,6 +10,7 @@ from src.agent.models.validation_result import ValidationResult
 # Util functions
 def get_ollama(bind_tools: bool = True) -> ChatOllama:
     llm = ChatOllama(
+        #model="phi4", temperature=0
         model="llama3.2", temperature=0
     )
     if bind_tools:
@@ -21,14 +20,17 @@ def get_ollama(bind_tools: bool = True) -> ChatOllama:
 
 # Tool functions
 def validate_inputs(state: GeneratorState):
-    """Validate the the topic. This ensures that the topic is appropriate for target audience and languages are supported""" 
+    """Validate the topic. This ensures that the topic is appropriate for target audience and languages are supported"""
 
     system_message = """You are an assitant that needs to validate that the topic is appropriate for the target audience and that the languages are supported. 
     The target audience are kids in the age group of 4-6 years old. The topic should be appropriate for this age group, if not, you should reject the topic and provide a reason.
     There is also an optional "additional_languages" parameter that can be passed.
-    If additional_languages is not empty, validate them by ensuring that they supported and that you can translate to the language. 
+
+    If additional_languages is not empty, validate them by ensuring that they are supported and that you can translate to the language. 
     If a language is not supported, you should reject the language and specify the invalid language.
     If no additional_languages are provided, you can assume that the target language is English.
+
+    If the topic does not pass validation, provide the reasons why the topic is invalid in the validation results
     """
 
     human_message = """The topic is: {topic}
@@ -41,11 +43,17 @@ def validate_inputs(state: GeneratorState):
         SystemMessage(content=system_message),
         HumanMessage(content=human_message.format(topic=topic, languages=languages))
     ]
-    result: ValidationResult = get_ollama(bind_tools=False).with_structured_output(ValidationResult).invoke(message)
+    agent = get_ollama(bind_tools=False)
+    structured_agent = get_ollama(bind_tools=False).with_structured_output(ValidationResult.model_json_schema())
+    result = structured_agent.invoke(message)
+    print(f"Validation result: {result}")
+
+    validation_result = result["is_valid"]
+    validation_message = result.get("reason_for_failed_validation", "")
 
     return {
-        "is_valid": result.is_valid,
-        "existing_summary": result.message
+        "is_valid": validation_result,
+        "existing_summary": validation_message
     }
 
 def validation_router(state: GeneratorState) -> Literal["continue", "END"]:

@@ -1,7 +1,7 @@
 import operator
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Annotated, Tuple, Dict
+from typing import List, Annotated, Dict
 
 @dataclass(kw_only=True)
 class GeneratorInput:
