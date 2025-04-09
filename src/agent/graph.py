@@ -30,8 +30,11 @@ def get_ollama(bind_tools: bool = True) -> ChatOllama:
 def validate_language(state: GeneratorState):
     """Validate the language inputs. This ensures that the language inputs are real languages and that the agent can translate to them."""
 
+
+    languages = state.target_languages if state.target_languages else []
     # If there are no target languages, we don't need to validate anything
-    if not state.target_languages:
+    counts = len(languages)
+    if counts == 0:
         return {
             "is_valid": True,
             "existing_summary": ""
@@ -56,8 +59,6 @@ def validate_language(state: GeneratorState):
     """
 
     human_message = """additional_languages: {languages}"""
-
-    languages = state.target_languages if state.target_languages else []
 
     message = [
         SystemMessage(content=system_message),
